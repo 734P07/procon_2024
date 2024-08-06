@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as messagebox
 import random
+import math, time
 
 from ProblemData import Problem
 from Grid import Grid
@@ -65,7 +66,7 @@ class GamePanel:
         makemoveButton.pack(side='top')
         fetchButton = tk.Button(self.interactBackground, text='Fetch game data')
         fetchButton.pack(side='top')
-        algoButton = tk.Button(self.interactBackground, text='Solve with algorithm')
+        algoButton = tk.Button(self.interactBackground, text='Solve with algorithm', name="algoButton")
         algoButton.pack(side='top')
         self.interactBackground.pack(side='left', expand=True, fill="both")
 
@@ -104,6 +105,7 @@ class Game:
         self.add_start_cells()
         self.panel.root.bind('<Key>', self.key_handler)
         self.panel.interactBackground.nametowidget("makemoveButton").bind('<Button-1>', self.make_move_btn)
+        self.panel.interactBackground.nametowidget("algoButton").bind('<Button-1>', self.solve_with_alg_btn)
         self.panel.paint()
         self.panel.root.mainloop()
 
@@ -115,6 +117,7 @@ class Game:
         random.shuffle(self.problem.goal_grid.cells)
         for i in range(len(self.problem.goal_grid.cells)):
             random.shuffle(self.problem.goal_grid.cells[i])
+        self.grid.print_grid()
         self.problem.goal_grid.print_grid()
 
     def key_handler(self, event):
@@ -134,7 +137,9 @@ class Game:
         self.panel.paint()
 
     def solve_with_alg_btn(self, event):
+        self.solve_with_alg()
         pass
+
     def make_move_btn(self, event):
         pattern = int(self.panel.interactBackground.nametowidget("patternEntry").get())
         x = int(self.panel.interactBackground.nametowidget("xEntry").get())
@@ -143,11 +148,60 @@ class Game:
         self.make_move(pattern, x, y, s)
         self.panel.paint()
 
-    def make_move(self, p, x, y, s):
+    def solve_with_alg(self):
+        total = 0
+        def align(power, col, row, s: str):
+            print(f"Type/col/row/direction: {max(0,3*power-2)}/{col}/{row}/" + s)
+            self.make_move(max(0,3*power-2), col, row, s)
+
+        for row in range(self.problem.height):
+            for col in range(self.problem.width):
+                for j in range(col, self.problem.width):
+                    if self.grid.cells[row][j] == self.problem.goal_grid.cells[row][col]:
+                        diff = j-col
+                        while(diff != 0):
+                            power = int(math.log2(diff))
+                            if(2**power > diff):
+                                power -= 1
+                            align(power, col, row, 'left')
+                            self.panel.paint()
+                            diff -= 2**power
+                            total+=1
+                        break
+                if(self.grid.cells[row][col] != self.problem.goal_grid.cells[row][col]):
+                    for i in range(row+1, self.problem.height):
+                        for j in range(self.problem.width):
+                            if self.grid.cells[i][j] == self.problem.goal_grid.cells[row][col]:
+                                diff = (col - j if col>j else j-col) 
+                                while(diff != 0):
+                                    power = int(math.log2(diff))
+                                    if(2**power > diff):
+                                        power -= 1
+                                    align(power, j+1, i, 'right') if(j < col) else align(power, col, i, 'left')
+                                    self.panel.paint()
+                                    j+=2**power ## be careful
+                                    diff -= 2**power
+                                    total+=1
+                                break
+                        if self.grid.cells[i][col] == self.problem.goal_grid.cells[row][col]:
+                            diff = (row - i if row>i else i-row)
+                            while(diff != 0):
+                                power = int(math.log2(diff))
+                                if(2**power > diff):
+                                    power -= 1
+                                align(power, col, row, 'up')
+                                self.panel.paint()
+                                diff -= 2**power
+                                total+=1
+                            break
+                self.panel.paint()
+        print("total: ", total)
+
+    def make_move(self, p, x, y, s: str):
         ls = self.erased_cells(p=p, x=x, y=y)
-        for i in ls:
-            print(i, end=' ')
-        print("\n")
+        # for i in ls:
+        #     print(i, end=' ')
+        # print("\n")
         getattr(self, s)()
         empty_cells = self.grid.retrieve_empty_cells()
         for i in range(len(ls)):
@@ -189,7 +243,7 @@ class Game:
 
 
 if __name__ == '__main__':
-    problem = Problem(5, 10)
+    problem = Problem(32, 32)
     panel = GamePanel(problem)
     test_game = Game(problem, panel)
     test_game.start()
