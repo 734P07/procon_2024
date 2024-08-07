@@ -33,20 +33,25 @@ class Grid:
     def generate_empty_grid(self):
         return [[Grid.EMPTY] * self.width for i in range(self.height)]
 
-    def transpose(self):
-        self.cells = [list(t) for t in zip(*self.cells)]
-        self.height, self.width = \
-                    self.width, self.height
+    def up_compress(self):
+        new_grid = self.generate_empty_grid()
+        for j in range(self.width):
+            count = 0
+            for i in range(self.height):
+                if self.cells[i][j] != Grid.EMPTY:
+                    new_grid[count][j] = self.cells[i][j]
+                    count += 1
+        self.cells = new_grid
 
-    def reverse(self):
-        for i in range(self.height):
-            start = 0
-            end = self.width - 1
-            while start < end:
-                self.cells[i][start], self.cells[i][end] = \
-                    self.cells[i][end], self.cells[i][start]
-                start += 1
-                end -= 1
+    def down_compress(self):
+        new_grid = self.generate_empty_grid()
+        for j in range(self.width):
+            count = self.height - 1
+            for i in range(self.height - 1, -1, -1):
+                if self.cells[i][j] != Grid.EMPTY:
+                    new_grid[count][j] = self.cells[i][j]
+                    count -= 1
+        self.cells = new_grid
 
     def left_compress(self):
         new_grid = self.generate_empty_grid()
@@ -56,6 +61,16 @@ class Grid:
                 if self.cells[i][j] != Grid.EMPTY:
                     new_grid[i][count] = self.cells[i][j]
                     count += 1
+        self.cells = new_grid
+
+    def right_compress(self):
+        new_grid = self.generate_empty_grid()
+        for i in range(self.height):
+            count = self.width - 1
+            for j in range(self.width - 1, -1, -1):
+                if self.cells[i][j] != Grid.EMPTY:
+                    new_grid[i][count] = self.cells[i][j]
+                    count -= 1
         self.cells = new_grid
 
     def set_cells(self, cells):

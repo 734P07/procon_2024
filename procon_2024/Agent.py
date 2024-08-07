@@ -1,3 +1,3 @@
 class Solution:
-    def __init__(self, start_grid, goal_grid):
+    def __init__(self):
         self.solution = []
