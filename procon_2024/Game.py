@@ -197,32 +197,8 @@ class Game:
                 if(self.grid.cells[row][col] != Problem.goal_grid.cells[row][col]):
                     fail+=1
         print("Fail: ", fail)
-
-    def make_move(self, p, x, y, s: str):
-        if s=='up' or s=='left':
-            self.new_erased_cells(p,x,y,s)
-            return
-        ls = self.erased_cells(p=p, x=x, y=y)
-        # for i in ls:
-        #     print(i, end=' ')
-        # print("\n")
-        getattr(self, s)()
-        empty_cells = self.grid.retrieve_empty_cells()
-        for i in range(len(ls)):
-            self.grid.cells[empty_cells[i][0]][empty_cells[i][1]] = ls[i]
-
-    def erased_cells(self, p, x, y) -> list:
-        ## error with >24th pattern
-        ls = []
-        for i in range(Problem.patterns[p].height):
-            for j in range(Problem.patterns[p].width):
-                if Problem.patterns[p].cells[i][j] == 1:
-                    if(y+i>=0 and y+i<Problem.height and x+j>=0 and x+j<Problem.width):
-                        ls.append(self.grid.cells[y+i][x+j])
-                        self.grid.cells[y+i][x+j] = Grid.EMPTY
-        return ls
         
-    def new_erased_cells(self, p, x, y, s:str) -> list:
+    def make_move(self, p, x, y, s:str):
         xLow = max(0, x)
         yLow = max(0, y)
         xHigh = min(Problem.width, x + Problem.patterns[p].width)
@@ -247,13 +223,23 @@ class Game:
                     self.grid.cells[yLow+len(keep)+i][j] = erase[i]
             return
         if(s == 'down'):
-            for j in range(Problem.patterns[p].width):
-                tmp = []
-                for i in range(Problem.patterns[p].height - 1, -1, -1):
-                    if Problem.patterns[p].cells[i][j] == 1:
-                        if(y+i>=0 and y+i<Problem.height and x+j>=0 and x+j<Problem.width):
-                            tmp.append(self.grid.cells[y+i][x+j])
-                            self.grid.cells[y+i][x+j] = Grid.EMPTY
+            for j in range(xLow, xHigh):
+                erase = []
+                keep = []
+                jPattern = j - x
+                for i in range(yHigh - 1, -1, -1):
+                    iPattern = i - y
+                    try:
+                        if Problem.patterns[p].cells[iPattern][jPattern] == 1 and iPattern>=0:
+                            erase.append(self.grid.cells[i][j])
+                        else:
+                            keep.append(self.grid.cells[i][j])
+                    except:
+                        keep.append(self.grid.cells[i][j])
+                for i in range(len(keep)):
+                    self.grid.cells[yHigh-1-i][j] = keep[i]
+                for i in range(len(erase)):
+                    self.grid.cells[yHigh-1-len(keep)-i][j] = erase[i]
             return
         if(s == 'left'):
             for i in range(yLow, yHigh):
@@ -274,22 +260,28 @@ class Game:
                 for j in range(len(erase)):
                     self.grid.cells[i][xLow+len(keep)+j] = erase[j]
             return
-
-    def up(self):
-        self.grid.up_compress()
-
-    def left(self):
-        self.grid.left_compress()
-
-    def down(self):
-        self.grid.down_compress()
-
-    def right(self):
-        self.grid.right_compress()
+        for i in range(yLow, yHigh):
+            erase = []
+            keep = []
+            iPattern = i - y
+            for j in range(xHigh - 1, -1, -1):
+                jPattern = j - x
+                try:
+                    if Problem.patterns[p].cells[iPattern][jPattern] == 1 and jPattern>=0:
+                        erase.append(self.grid.cells[i][j])
+                    else:
+                        keep.append(self.grid.cells[i][j])
+                except:
+                    keep.append(self.grid.cells[i][j])
+            for j in range(len(keep)):
+                self.grid.cells[i][xHigh-1-j] = keep[j]
+            for j in range(len(erase)):
+                self.grid.cells[i][xHigh-1-len(keep)-j] = erase[j]
+        return
 
 
 if __name__ == '__main__':
-    problem = Problem(200, 256)
+    problem = Problem(256, 256)
     panel = GamePanel(problem.start_grid)
     test_game = Game(panel)
     test_game.start()
