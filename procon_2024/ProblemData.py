@@ -27,8 +27,9 @@ class Problem:
             k = Grid(2**i, 2**i)
             k.set_cells(ls)
             Problem.patterns.append(k)
+        self.generate_problem()
         
-    def generate_problem():
+    def generate_problem(self):
         Problem.start_grid.random_cells()
         for i in range(Problem.height):
             for j in range(Problem.width):

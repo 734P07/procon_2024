@@ -7,6 +7,7 @@ import math, time
 
 from ProblemData import Problem
 from Grid import Grid
+from Agent import Agent
 
 class GamePanel:
     '''The GUI view class'''
@@ -66,11 +67,17 @@ class GamePanel:
 
         makemoveButton = tk.Button(self.interactBackground, text='Make a move', name="makemoveButton")
         makemoveButton.pack(side='top')
+
         fetchButton = tk.Button(self.interactBackground, text='Fetch game data')
         fetchButton.pack(side='top')
-        algoButton = tk.Button(self.interactBackground, text='Solve with algorithm', name="algoButton")
-        algoButton.pack(side='top')
+
+        basicSolveBtn = tk.Button(self.interactBackground, text='Find basic solution', name="basicSolveBtn")
+        basicSolveBtn.pack(side='top')
+
         self.interactBackground.pack(side='left', expand=True, fill="both")
+
+    def switch_grid(self, grid):
+        self.grid = grid
 
     def paint(self):
         if(GamePanel.SHOW_BOARD):
@@ -101,20 +108,22 @@ class Game:
     def __init__(self, panel: GamePanel):
         self.grid = Problem.start_grid
         self.panel = panel
+        self.agents = [Agent()]
 
     def start(self):
-        Problem.generate_problem()
         self.panel.root.bind('<Key>', self.key_handler)
         self.panel.interactBackground.nametowidget("makemoveButton").bind('<Button-1>', self.make_move_btn)
-        self.panel.interactBackground.nametowidget("algoButton").bind('<Button-1>', self.solve_with_alg_btn)
+        self.panel.interactBackground.nametowidget("basicSolveBtn").bind('<Button-1>', self.basic_solve_btn)
         self.panel.paint()
         self.panel.root.mainloop()
 
     def key_handler(self, event):
         pass
 
-    def solve_with_alg_btn(self, event):
-        self.solve_with_alg()
+    def basic_solve_btn(self, event):
+        self.grid = self.agents[0].grid
+        self.panel.switch_grid(self.grid)
+        self.basic_solve()
 
     def make_move_btn(self, event):
         pattern = int(self.panel.interactBackground.nametowidget("patternEntry").get())
@@ -124,7 +133,7 @@ class Game:
         self.make_move(pattern, x, y, s)
         self.panel.paint()
 
-    def solve_with_alg(self):
+    def basic_solve(self):
         total = 0
         def align(power, col, row, s: str):
             print(f"Type/col/row/direction: {max(0,3*power-2)}/{col}/{row}/" + s)
@@ -197,7 +206,86 @@ class Game:
                 if(self.grid.cells[row][col] != Problem.goal_grid.cells[row][col]):
                     fail+=1
         print("Fail: ", fail)
-        
+
+    ### Bad solution
+    def solve_with_kmp(self):
+        total = 0
+        fail = 0
+
+        def align(power, col, row, s: str):
+            print(f"Type/col/row/direction: {max(0,3*power-2)}/{col}/{row}/" + s)
+            self.make_move(max(0,3*power-2), col, row, s)
+
+        for row in range(Problem.height):
+            for col in range(Problem.width):
+                if(self.grid.cells[row][col] != Problem.goal_grid.cells[row][col]):
+                    # Step 1: find best match
+                    best = [0, 0, 0]
+                    lps = [0]
+                    ### find lps
+                    for i in range(col+1, Problem.width):
+                        j = lps[i - col - 1]
+                        while j > 0 and Problem.goal_grid.cells[row][j+col] != Problem.goal_grid.cells[row][i]:
+                            j = lps[j - 1]
+                        lps.append(j + 1 if Problem.goal_grid.cells[row][j+col] == Problem.goal_grid.cells[row][i] else j)
+                    ### find in row
+                    j=0
+                    for i in range(col, Problem.width):
+                        while j > 0 and self.grid.cells[row][i] != Problem.goal_grid.cells[row][j+col]:
+                            j = lps[j - 1]
+                        if self.grid.cells[row][i] == Problem.goal_grid.cells[row][j+col]: 
+                            j += 1
+                            if j > best[2]:
+                                best = [row, i - j + 1, j]
+                    ### find in rest
+                    for m in range(row+1, Problem.height):
+                        j = 0
+                        for i in range(Problem.width):
+                            while j > 0 and self.grid.cells[m][i] != Problem.goal_grid.cells[row][j+col]:
+                                j = lps[j - 1]
+                            if self.grid.cells[m][i] == Problem.goal_grid.cells[row][j+col]: 
+                                j += 1
+                                if j > best[2]:
+                                    best = [m, i - j + 1, j]
+                            if j == len(lps): 
+                                best = [m, i - j + 1, j]
+                                break
+                        if(best[2] == len(lps)): break
+
+                    # step 2: fit best match to right place
+                    ### align best match to right column
+                    diff = abs(col - best[1])
+                    while(diff != 0):
+                        power = int(math.log2(diff))
+                        if(2**power > diff):
+                            power -= 1
+                        align(power, best[1]+best[2], best[0], 'right') if(best[1] < col) else align(power, col, best[0], 'left')
+                        best[1]+=2**power ## be careful
+                        diff -= 2**power
+                        total+=1
+                        self.panel.paint()
+                        self.panel.root.update()
+                    ### bring best match to right row
+                    diff = abs(row - best[0])
+                    while(diff != 0):
+                        power = int(math.log2(diff))
+                        if(2**power > diff):
+                            power -= 1
+                        tmp = col
+                        while(tmp < col + best[2]):
+                            align(power, tmp, row, 'up')
+                            total+=1
+                            tmp+=2**power
+                        diff -= 2**power
+                        self.panel.paint()
+                        self.panel.root.update()
+        print("Total step: ", total)
+        for row in range(Problem.height):
+            for col in range(Problem.width):
+                if(self.grid.cells[row][col] != Problem.goal_grid.cells[row][col]):
+                    fail+=1
+        print("Fail: ", fail)
+    
     def make_move(self, p, x, y, s:str):
         xLow = max(0, x)
         yLow = max(0, y)
@@ -281,7 +369,7 @@ class Game:
 
 
 if __name__ == '__main__':
-    problem = Problem(256, 256)
+    problem = Problem(20, 40)
     panel = GamePanel(problem.start_grid)
     test_game = Game(panel)
     test_game.start()
