@@ -51,3 +51,7 @@ learning/note.txt
 procon_2024/__pycache__/Agent.cpython-312.pyc
 procon_2024/__pycache__/ProblemData.cpython-312.pyc
 procon_2024/__pycache__/ProblemData.cpython-312.pyc
+learning/neat-control-master/cartpole/cartpole.config
+learning/neat-control-master/cartpole/cartpole.py
+learning/neat-control-master/cartpole/README.md
+/learning

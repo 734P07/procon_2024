@@ -283,19 +283,32 @@ class Game:
     def adv_solve(self):
         total = 0
         fail = 0
+        cell_done = False
         def align(power, col, row, s: str):
             self.make_move(max(0,3*power-2), col, row, s)
 
         for row in range(Problem.height - 1, -1, -1):
             for col in range(Problem.width):
+                match = -1
+                if cell_done:
+                    cell_done = False
+                    continue
                 check = False
-                ### Find in col (max step 1)
+                ### Find in col (max step 1 or 1/2)
                 for i in range(Problem.height - 1 - row, Problem.height):
                     if self.grid.cells[i][col] == Problem.goal_grid.cells[row][col]:
-                        self.make_move(0, col, i, 'down')
-                        total+=1
-                        check = True
-                        break
+                        if col < Problem.width - 1 and self.grid.cells[i][col+1] == Problem.goal_grid.cells[row][col+1]:
+                            self.make_move(2, col, i, 'down')
+                            cell_done = True
+                            total+=1
+                            check = True
+                            break
+                        else:
+                            match = i    
+                if(match!=-1 and not check):
+                    self.make_move(0, col, match, 'down')
+                    total+=1
+                    continue
                 ### Find in row (max step 8)
                 if not check:
                     for j in range(col, Problem.width):
@@ -312,7 +325,8 @@ class Game:
                             break
                     if check:
                         self.make_move(0, col, Problem.height - 1 - row, 'down')
-                ### Find in rest (max step 2)
+                        total+=1
+                ### Find in rest (max step 8 -> optimize to 2)
                 if not check:
                     for i in range(Problem.height - row, Problem.height):
                         for j in range(Problem.width):
@@ -330,6 +344,7 @@ class Game:
                                 break
                         if check:
                             self.make_move(0, col, i, 'down')
+                            total+=1
                             break
         print("Total step: ", total)
         for row in range(Problem.height):
@@ -429,7 +444,7 @@ class Game:
         return
 
 if __name__ == '__main__':
-    problem = Problem(150, 100)
+    problem = Problem(100, 100)
     panel = GamePanel(problem.start_grid)
     test_game = Game(panel)
     test_game.start()
