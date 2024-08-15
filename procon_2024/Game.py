@@ -297,6 +297,9 @@ class Game:
                 ### Find in col (max step 1 or 1/2)
                 for i in range(Problem.height - 1 - row, Problem.height):
                     if self.grid.cells[i][col] == Problem.goal_grid.cells[row][col]:
+                        if i == 0:
+                            check = True
+                            break
                         if col < Problem.width - 1 and self.grid.cells[i][col+1] == Problem.goal_grid.cells[row][col+1]:
                             self.make_move(2, col, i, 'down')
                             cell_done = True
@@ -309,6 +312,20 @@ class Game:
                     self.make_move(0, col, match, 'down')
                     total+=1
                     continue
+                ### Find in rest (max step 2)
+                if not check:
+                    for i in range(Problem.height - row, Problem.height):
+                        for j in range(Problem.width):
+                            if self.grid.cells[i][j] == Problem.goal_grid.cells[row][col]:
+                                diff = abs(col - j) 
+                                self.make_move(23, Problem.width - diff, i, 'right') if(j < col) else self.make_move(23, diff, i, 'right')
+                                total+=1
+                                check = True
+                                break
+                        if check:
+                            self.make_move(0, col, i, 'down')
+                            total+=1
+                            break
                 ### Find in row (max step 8)
                 if not check:
                     for j in range(col, Problem.width):
@@ -326,26 +343,6 @@ class Game:
                     if check:
                         self.make_move(0, col, Problem.height - 1 - row, 'down')
                         total+=1
-                ### Find in rest (max step 8 -> optimize to 2)
-                if not check:
-                    for i in range(Problem.height - row, Problem.height):
-                        for j in range(Problem.width):
-                            if self.grid.cells[i][j] == Problem.goal_grid.cells[row][col]:
-                                diff = abs(col - j) 
-                                while(diff != 0):
-                                    power = int(math.log2(diff))
-                                    if(2**power > diff):
-                                        power -= 1
-                                    align(power, j+1, i, 'right') if(j < col) else align(power, col, i, 'left')
-                                    j+=2**power ## be careful
-                                    diff -= 2**power
-                                    total+=1
-                                check = True
-                                break
-                        if check:
-                            self.make_move(0, col, i, 'down')
-                            total+=1
-                            break
         print("Total step: ", total)
         for row in range(Problem.height):
             for col in range(Problem.width):
@@ -444,7 +441,7 @@ class Game:
         return
 
 if __name__ == '__main__':
-    problem = Problem(100, 100)
+    problem = Problem(256, 256)
     panel = GamePanel(problem.start_grid)
     test_game = Game(panel)
     test_game.start()
