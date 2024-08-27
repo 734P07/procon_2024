@@ -83,11 +83,18 @@ class GamePanel:
         fetchButton = tk.Button(self.interactBackground, text='Fetch game data', name="fetchDataBtn")
         fetchButton.pack(side='top')
 
+        tk.Label(self.interactBackground, text='Solver').pack(side="top")
+
         basicSolveBtn = tk.Button(self.interactBackground, text='Find basic solution', name="basicSolveBtn")
         basicSolveBtn.pack(side='top')
 
         advSolveBtn = tk.Button(self.interactBackground, text='Advance solution', name="advSolveBtn")
         advSolveBtn.pack(side='top')
+
+        advSolveBtn2 = tk.Button(self.interactBackground, text='Advance solution 2', name="advSolveBtn2")
+        advSolveBtn2.pack(side='top')
+
+        tk.Label(self.interactBackground, text='Answer').pack(side="top")
 
         showAnsBtn = tk.Button(self.interactBackground, text='Show answers', name="showAnsBtn")
         showAnsBtn.pack(side='top')
@@ -135,10 +142,13 @@ class Game:
 
     def start(self):
         self.panel.root.bind('<Key>', self.key_handler)
+        self.panel.interactBackground.nametowidget("fetchDataBtn").bind('<Button-1>', self.fetch_data_btn)
         self.panel.interactBackground.nametowidget("makemoveButton").bind('<Button-1>', self.make_move_btn)
+
         self.panel.interactBackground.nametowidget("basicSolveBtn").bind('<Button-1>', self.basic_solve_btn)
         self.panel.interactBackground.nametowidget("advSolveBtn").bind('<Button-1>', self.adv_solve_btn)
-        self.panel.interactBackground.nametowidget("fetchDataBtn").bind('<Button-1>', self.fetch_data_btn)
+        self.panel.interactBackground.nametowidget("advSolveBtn2").bind('<Button-1>', self.adv_solve_btn2)
+        
         self.panel.interactBackground.nametowidget("showAnsBtn").bind('<Button-1>', self.show_answer_btn)
         self.panel.interactBackground.nametowidget("sendAnsBtn").bind('<Button-1>', self.send_answer_btn)
         self.panel.paint()
@@ -158,6 +168,12 @@ class Game:
         self.grid = self.agents[len(self.agents)-1].grid
         self.panel.switch_grid(self.grid)
         self.adv_solve()
+
+    def adv_solve_btn2(self, event):
+        self.agents.append(Agent())
+        self.grid = self.agents[len(self.agents)-1].grid
+        self.panel.switch_grid(self.grid)
+        self.adv_solve2()
 
     def make_move_btn(self, event):
         pattern = int(self.panel.interactBackground.nametowidget("patternEntry").get())
@@ -179,7 +195,7 @@ class Game:
         print("----------------------------------------")
 
         question_data = json.loads(question_json["question_data"])
-
+        
         Problem.width = question_data["board"]["width"]
         Problem.height = question_data["board"]["height"]
         Problem.start_grid = Grid(Problem.height, Problem.width)
@@ -210,7 +226,7 @@ class Game:
         total = 0
         fail = 0
         def align(power, col, row, s: str):
-            self.make_move(max(0,3*power-2), col, row, s)
+            self.make_move_log(max(0,3*power-2), col, row, s)
 
         for row in range(Problem.height):
             for col in range(Problem.width):
@@ -244,7 +260,7 @@ class Game:
                         for j in range(Problem.width):
                             if self.grid.cells[i][j] == Problem.goal_grid.cells[row][col]:
                                 diff = abs(col - j) 
-                                self.make_move(23, Problem.width - diff, i, 'right') if(j < col) else self.make_move(23, diff, i, 'right')
+                                self.make_move_log(23, Problem.width - diff, i, 'right') if(j < col) else self.make_move_log(23, diff, i, 'right')
                                 total+=1
                                 break
                         if self.grid.cells[i][col] == Problem.goal_grid.cells[row][col]:
@@ -411,6 +427,77 @@ class Game:
         self.agents[len(self.agents) - 1].fail = fail
         print("Fail: ", fail)
 
+    def adv_solve2(self):
+        total = 0
+        fail = 0
+        cell_done = False
+        def align(power, col, row, s: str):
+            self.make_move_log(max(0,3*power-2), col, row, s)
+
+        for col in range(Problem.width - 1, -1, -1):
+            for row in range(Problem.height):
+                match = -1
+                if cell_done:
+                    cell_done = False
+                    continue
+                check = False
+                ### Find in row (max step 1 or 1/2)
+                for j in range(Problem.width - 1 - col, Problem.width):
+                    if self.grid.cells[row][j] == Problem.goal_grid.cells[row][col]:
+                        if j == 0:
+                            check = True
+                            break
+                        if row < Problem.height - 1 and self.grid.cells[row+1][j] == Problem.goal_grid.cells[row+1][col]:
+                            self.make_move_log(3, j, row, 'right')
+                            cell_done = True
+                            total+=1
+                            check = True
+                            break
+                        else:
+                            match = j
+                if(match!=-1 and not check):
+                    self.make_move_log(0, match, row, 'right')
+                    total+=1
+                    continue
+                ### Find in rest (max step 2)
+                if not check:
+                    for j in range(Problem.width - col, Problem.width):
+                        for i in range(Problem.height):
+                            if self.grid.cells[i][j] == Problem.goal_grid.cells[row][col]:
+                                diff = abs(row - i) 
+                                self.make_move_log(24, j, Problem.height - diff, 'down') if(i < row) else self.make_move_log(24, j, diff, 'down')
+                                total+=1
+                                check = True
+                                break
+                        if check:
+                            self.make_move_log(0, j, row, 'right')
+                            total+=1
+                            break
+                ### Find in col (max step 8) -> optimize to 3
+                if not check:
+                    for i in range(row, Problem.height):
+                        if self.grid.cells[i][Problem.width - 1 - col] == Problem.goal_grid.cells[row][col]:
+                            diff = i-row
+                            while(diff != 0):
+                                power = int(math.log2(diff))
+                                if(2**power > diff):
+                                    power -= 1
+                                align(power, Problem.width - 1 - col, row, 'up')
+                                diff -= 2**power
+                                total+=1
+                            check = True
+                            break
+                    if check:
+                        self.make_move_log(0, Problem.width - 1 - col, row, 'right')
+                        total+=1
+        print("Total step: ", total)
+        for row in range(Problem.height):
+            for col in range(Problem.width):
+                if(self.grid.cells[row][col] != Problem.goal_grid.cells[row][col]):
+                    fail+=1
+        self.agents[len(self.agents) - 1].fail = fail
+        print("Fail: ", fail)
+
     def make_move_log(self, p, x, y, s:str):
         self.make_move(p,x,y,s)
         self.agents[len(self.agents) - 1].solution.append({"p":p, "x":x, "y":y, "s":Game.Direction[s]})
@@ -506,7 +593,7 @@ class Game:
         return
 
 if __name__ == '__main__':
-    problem = Problem(32, 32)
+    problem = Problem(32, 64)
     panel = GamePanel(problem.start_grid)
     test_game = Game(panel)
     test_game.start()
