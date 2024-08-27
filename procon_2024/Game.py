@@ -2,8 +2,9 @@ from __future__ import print_function
 import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as messagebox
-import random
-import math, time
+import math
+import requests
+import json
 
 from ProblemData import Problem
 from Grid import Grid
@@ -47,6 +48,18 @@ class GamePanel:
                 self.cell_labels.append(row_labels)
             self.gridBackground.pack(side='left', expand=True)
 
+        tk.Label(self.interactBackground, text='Token').pack(side="top")
+        tokenEntry = tk.Entry(self.interactBackground, justify='center', name="tokenEntry")
+        tokenEntry.pack(side="top", fill="x")
+
+        tk.Label(self.interactBackground, text='Question ID').pack(side="top")
+        qIDEntry = tk.Entry(self.interactBackground, justify='center', name="qIDEntry")
+        qIDEntry.pack(side="top", fill="x")
+
+        tk.Label(self.interactBackground, text='Answer index').pack(side="top")
+        answerEntry = tk.Entry(self.interactBackground, justify='center', name="answerEntry")
+        answerEntry.pack(side="top", fill="x")
+
         tk.Label(self.interactBackground, text='X (width)').pack(side="top")
         xEntry = tk.Entry(self.interactBackground, justify='center', name="xEntry")
         xEntry.pack(side="top",fill="x")
@@ -55,8 +68,7 @@ class GamePanel:
         yEntry = tk.Entry(self.interactBackground, justify='center', name="yEntry")
         yEntry.pack(side="top", fill="x")
 
-        patternLabel = tk.Label(self.interactBackground, text='Pattern')
-        patternLabel.pack(side="top")
+        tk.Label(self.interactBackground, text='Pattern').pack(side="top")
         patternEntry = tk.Entry(self.interactBackground, justify='center', name="patternEntry")
         patternEntry.pack(side="top", fill="x")
 
@@ -68,7 +80,7 @@ class GamePanel:
         makemoveButton = tk.Button(self.interactBackground, text='Make a move', name="makemoveButton")
         makemoveButton.pack(side='top')
 
-        fetchButton = tk.Button(self.interactBackground, text='Fetch game data')
+        fetchButton = tk.Button(self.interactBackground, text='Fetch game data', name="fetchDataBtn")
         fetchButton.pack(side='top')
 
         basicSolveBtn = tk.Button(self.interactBackground, text='Find basic solution', name="basicSolveBtn")
@@ -76,6 +88,12 @@ class GamePanel:
 
         advSolveBtn = tk.Button(self.interactBackground, text='Advance solution', name="advSolveBtn")
         advSolveBtn.pack(side='top')
+
+        showAnsBtn = tk.Button(self.interactBackground, text='Show answers', name="showAnsBtn")
+        showAnsBtn.pack(side='top')
+
+        sendAnsBtn = tk.Button(self.interactBackground, text='Send answer', name="sendAnsBtn")
+        sendAnsBtn.pack(side='top')
 
         self.interactBackground.pack(side='left', expand=True, fill="both")
 
@@ -108,16 +126,21 @@ class GamePanel:
 class Game:
     '''Controller of the game.'''
     Direction = {'up' : 0, 'down' : 1, 'left':2, 'right':3}
+    url = "https://proconvn.duckdns.org"
+
     def __init__(self, panel: GamePanel):
         self.grid = Problem.start_grid
         self.panel = panel
-        self.agents = [Agent(), Agent()]
+        self.agents = []
 
     def start(self):
         self.panel.root.bind('<Key>', self.key_handler)
         self.panel.interactBackground.nametowidget("makemoveButton").bind('<Button-1>', self.make_move_btn)
         self.panel.interactBackground.nametowidget("basicSolveBtn").bind('<Button-1>', self.basic_solve_btn)
         self.panel.interactBackground.nametowidget("advSolveBtn").bind('<Button-1>', self.adv_solve_btn)
+        self.panel.interactBackground.nametowidget("fetchDataBtn").bind('<Button-1>', self.fetch_data_btn)
+        self.panel.interactBackground.nametowidget("showAnsBtn").bind('<Button-1>', self.show_answer_btn)
+        self.panel.interactBackground.nametowidget("sendAnsBtn").bind('<Button-1>', self.send_answer_btn)
         self.panel.paint()
         self.panel.root.mainloop()
 
@@ -125,12 +148,14 @@ class Game:
         pass
 
     def basic_solve_btn(self, event):
-        self.grid = self.agents[0].grid
+        self.agents.append(Agent())
+        self.grid = self.agents[len(self.agents)-1].grid
         self.panel.switch_grid(self.grid)
         self.basic_solve()
 
     def adv_solve_btn(self, event):
-        self.grid = self.agents[1].grid
+        self.agents.append(Agent())
+        self.grid = self.agents[len(self.agents)-1].grid
         self.panel.switch_grid(self.grid)
         self.adv_solve()
 
@@ -140,6 +165,46 @@ class Game:
         y = int(self.panel.interactBackground.nametowidget("yEntry").get())
         s = self.panel.interactBackground.nametowidget("directCombobox").get()
         self.make_move(pattern, x, y, s)
+
+    def fetch_data_btn(self, event):
+        self.agents.clear()
+
+        headers = {"Authorization": self.panel.interactBackground.nametowidget("tokenEntry").get()}
+        question_id = int(self.panel.interactBackground.nametowidget("qIDEntry").get())
+        question_response = requests.get(f"{Game.url}/question/{question_id}", headers=headers)
+        question_json = question_response.json()
+
+        print("----------------------------------------")
+        print(f"Status code: {question_response.status_code}")
+        print("----------------------------------------")
+
+        question_data = json.loads(question_json["question_data"])
+
+        Problem.width = question_data["board"]["width"]
+        Problem.height = question_data["board"]["height"]
+        Problem.start_grid = Grid(Problem.height, Problem.width)
+        Problem.start_grid.cells = question_data["board"]["start"]
+        Problem.goal_grid = Grid(Problem.height, Problem.width)
+        Problem.goal_grid.cells = question_data["board"]["goal"]
+
+    def show_answer_btn(self, event):
+        print("----------------------------------------")
+        print(f"{len(self.agents)} answers created:")
+        for i in range(len(self.agents)):
+            print(f"+ {i}: {len(self.agents[i].solution)} steps, {self.agents[i].fail} cells failed")
+        print("----------------------------------------")
+
+    def send_answer_btn(self, event):
+        headers = {"Authorization": self.panel.interactBackground.nametowidget("tokenEntry").get()}
+        question_id = int(self.panel.interactBackground.nametowidget("qIDEntry").get())
+        answer_id = int(self.panel.interactBackground.nametowidget("answerEntry").get())
+
+        payload = {"question_id": question_id, "answer_data": {"n": len(self.agents[answer_id].solution), "ops": self.agents[answer_id].solution}}
+        response = requests.post(f"{Game.url}/answer", json=payload, headers=headers)
+
+        print("----------------------------------------")
+        print(f"Status code: {response.status_code}")
+        print("----------------------------------------")
 
     def basic_solve(self):
         total = 0
@@ -178,15 +243,9 @@ class Game:
                     for i in range(row+1, Problem.height):
                         for j in range(Problem.width):
                             if self.grid.cells[i][j] == Problem.goal_grid.cells[row][col]:
-                                diff = (col - j if col>j else j-col) 
-                                while(diff != 0):
-                                    power = int(math.log2(diff))
-                                    if(2**power > diff):
-                                        power -= 1
-                                    align(power, j+1, i, 'right') if(j < col) else align(power, col, i, 'left')
-                                    j+=2**power ## be careful
-                                    diff -= 2**power
-                                    total+=1
+                                diff = abs(col - j) 
+                                self.make_move(23, Problem.width - diff, i, 'right') if(j < col) else self.make_move(23, diff, i, 'right')
+                                total+=1
                                 break
                         if self.grid.cells[i][col] == Problem.goal_grid.cells[row][col]:
                             diff = (row - i if row>i else i-row)
@@ -204,6 +263,7 @@ class Game:
             for col in range(Problem.width):
                 if(self.grid.cells[row][col] != Problem.goal_grid.cells[row][col]):
                     fail+=1
+        self.agents[len(self.agents) - 1].fail = fail
         print("Fail: ", fail)
 
     ### Bad solution
@@ -285,7 +345,7 @@ class Game:
         fail = 0
         cell_done = False
         def align(power, col, row, s: str):
-            self.make_move(max(0,3*power-2), col, row, s)
+            self.make_move_log(max(0,3*power-2), col, row, s)
 
         for row in range(Problem.height - 1, -1, -1):
             for col in range(Problem.width):
@@ -301,7 +361,7 @@ class Game:
                             check = True
                             break
                         if col < Problem.width - 1 and self.grid.cells[i][col+1] == Problem.goal_grid.cells[row][col+1]:
-                            self.make_move(2, col, i, 'down')
+                            self.make_move_log(2, col, i, 'down')
                             cell_done = True
                             total+=1
                             check = True
@@ -309,7 +369,7 @@ class Game:
                         else:
                             match = i    
                 if(match!=-1 and not check):
-                    self.make_move(0, col, match, 'down')
+                    self.make_move_log(0, col, match, 'down')
                     total+=1
                     continue
                 ### Find in rest (max step 2)
@@ -318,15 +378,15 @@ class Game:
                         for j in range(Problem.width):
                             if self.grid.cells[i][j] == Problem.goal_grid.cells[row][col]:
                                 diff = abs(col - j) 
-                                self.make_move(23, Problem.width - diff, i, 'right') if(j < col) else self.make_move(23, diff, i, 'right')
+                                self.make_move_log(23, Problem.width - diff, i, 'right') if(j < col) else self.make_move_log(23, diff, i, 'right')
                                 total+=1
                                 check = True
                                 break
                         if check:
-                            self.make_move(0, col, i, 'down')
+                            self.make_move_log(0, col, i, 'down')
                             total+=1
                             break
-                ### Find in row (max step 8)
+                ### Find in row (max step 8) -> optimize to 3
                 if not check:
                     for j in range(col, Problem.width):
                         if self.grid.cells[Problem.height - 1 - row][j] == Problem.goal_grid.cells[row][col]:
@@ -341,14 +401,19 @@ class Game:
                             check = True
                             break
                     if check:
-                        self.make_move(0, col, Problem.height - 1 - row, 'down')
+                        self.make_move_log(0, col, Problem.height - 1 - row, 'down')
                         total+=1
         print("Total step: ", total)
         for row in range(Problem.height):
             for col in range(Problem.width):
                 if(self.grid.cells[row][col] != Problem.goal_grid.cells[row][col]):
                     fail+=1
+        self.agents[len(self.agents) - 1].fail = fail
         print("Fail: ", fail)
+
+    def make_move_log(self, p, x, y, s:str):
+        self.make_move(p,x,y,s)
+        self.agents[len(self.agents) - 1].solution.append({"p":p, "x":x, "y":y, "s":Game.Direction[s]})
 
     def make_move(self, p, x, y, s:str):
         print(f"Type/col/row/direction: {p}/{x}/{y}/" + s)
@@ -441,7 +506,7 @@ class Game:
         return
 
 if __name__ == '__main__':
-    problem = Problem(256, 256)
+    problem = Problem(32, 32)
     panel = GamePanel(problem.start_grid)
     test_game = Game(panel)
     test_game.start()

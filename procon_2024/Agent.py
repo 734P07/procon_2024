@@ -6,4 +6,5 @@ from copy import *
 class Agent:
     def __init__(self):
         self.solution = []
+        self.fail = 0
         self.grid = deepcopy(Problem.start_grid)
