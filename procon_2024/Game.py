@@ -94,6 +94,9 @@ class GamePanel:
         advSolveBtn2 = tk.Button(self.interactBackground, text='Advance solution 2', name="advSolveBtn2")
         advSolveBtn2.pack(side='top')
 
+        testSolveBtn = tk.Button(self.interactBackground, text='Testing solution', name="testSolveBtn")
+        testSolveBtn.pack(side='top')
+
         tk.Label(self.interactBackground, text='Answer').pack(side="top")
 
         showAnsBtn = tk.Button(self.interactBackground, text='Show answers', name="showAnsBtn")
@@ -148,6 +151,7 @@ class Game:
         self.panel.interactBackground.nametowidget("basicSolveBtn").bind('<Button-1>', self.basic_solve_btn)
         self.panel.interactBackground.nametowidget("advSolveBtn").bind('<Button-1>', self.adv_solve_btn)
         self.panel.interactBackground.nametowidget("advSolveBtn2").bind('<Button-1>', self.adv_solve_btn2)
+        self.panel.interactBackground.nametowidget("testSolveBtn").bind('<Button-1>', self.kmp_solve_btn)
         
         self.panel.interactBackground.nametowidget("showAnsBtn").bind('<Button-1>', self.show_answer_btn)
         self.panel.interactBackground.nametowidget("sendAnsBtn").bind('<Button-1>', self.send_answer_btn)
@@ -174,6 +178,12 @@ class Game:
         self.grid = self.agents[len(self.agents)-1].grid
         self.panel.switch_grid(self.grid)
         self.adv_solve2()
+    
+    def kmp_solve_btn(self, event):
+        self.agents.append(Agent())
+        self.grid = self.agents[len(self.agents)-1].grid
+        self.panel.switch_grid(self.grid)
+        self.solve_with_kmp()
 
     def make_move_btn(self, event):
         pattern = int(self.panel.interactBackground.nametowidget("patternEntry").get())
@@ -288,12 +298,12 @@ class Game:
         fail = 0
 
         def align(power, col, row, s: str):
-            self.make_move(max(0,3*power-2), col, row, s)
+            self.make_move_log(max(0,3*power-2), col, row, s)
 
         for row in range(Problem.height):
             for col in range(Problem.width):
                 if(self.grid.cells[row][col] != Problem.goal_grid.cells[row][col]):
-                    # Step 1: find best match
+                    # Phase 1: find best match
                     best = [0, 0, 0]
                     lps = [0]
                     ### find lps
@@ -326,7 +336,7 @@ class Game:
                                 break
                         if(best[2] == len(lps)): break
 
-                    # step 2: fit best match to right place
+                    # Phase 2: fit best match to right place
                     ### align best match to right column
                     diff = abs(col - best[1])
                     while(diff != 0):
@@ -354,6 +364,7 @@ class Game:
             for col in range(Problem.width):
                 if(self.grid.cells[row][col] != Problem.goal_grid.cells[row][col]):
                     fail+=1
+        self.agents[len(self.agents) - 1].fail = fail
         print("Fail: ", fail)
 
     def adv_solve(self):
@@ -373,9 +384,9 @@ class Game:
                 ### Find in col (max step 1 or 1/2)
                 for i in range(Problem.height - 1 - row, Problem.height):
                     if self.grid.cells[i][col] == Problem.goal_grid.cells[row][col]:
-                        if i == 0:
-                            check = True
-                            break
+                        # if i == 0:
+                        #     check = True
+                        #     break
                         if col < Problem.width - 1 and self.grid.cells[i][col+1] == Problem.goal_grid.cells[row][col+1]:
                             self.make_move_log(2, col, i, 'down')
                             cell_done = True
@@ -444,9 +455,9 @@ class Game:
                 ### Find in row (max step 1 or 1/2)
                 for j in range(Problem.width - 1 - col, Problem.width):
                     if self.grid.cells[row][j] == Problem.goal_grid.cells[row][col]:
-                        if j == 0:
-                            check = True
-                            break
+                        # if j == 0:
+                        #     check = True
+                        #     break
                         if row < Problem.height - 1 and self.grid.cells[row+1][j] == Problem.goal_grid.cells[row+1][col]:
                             self.make_move_log(3, j, row, 'right')
                             cell_done = True
@@ -593,7 +604,7 @@ class Game:
         return
 
 if __name__ == '__main__':
-    problem = Problem(32, 64)
+    problem = Problem(32, 32)
     panel = GamePanel(problem.start_grid)
     test_game = Game(panel)
     test_game.start()
