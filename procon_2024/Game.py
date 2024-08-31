@@ -105,11 +105,11 @@ class GamePanel:
         testSolveBtn = tk.Button(self.interactBackground, text='Testing solution', name="testSolveBtn")
         testSolveBtn.pack(side='top')
 
-        tk.Label(self.interactBackground, text='Depth').pack(side="top")
-        depthEntry = tk.Entry(self.interactBackground, justify='center', name="depthEntry")
-        depthEntry.pack(side="top", fill="x")
+        # tk.Label(self.interactBackground, text='Depth').pack(side="top")
+        # depthEntry = tk.Entry(self.interactBackground, justify='center', name="depthEntry")
+        # depthEntry.pack(side="top", fill="x")
 
-        aStarBtn = tk.Button(self.interactBackground, text='A* algorithm', name="aStarBtn")
+        aStarBtn = tk.Button(self.interactBackground, text='One-move solution', name="aStarBtn")
         aStarBtn.pack(side='top')
 
         tk.Label(self.interactBackground, text='Answer').pack(side="top")
@@ -149,16 +149,15 @@ class GamePanel:
                             bg=bg_color, fg=fg_color)
 
 class State:
-    def __init__(self, steps, h):
+    def __init__(self, board, steps, h):
         self.steps = steps
         self.h = h
-    def clone(self):
-        sn = deepcopy(self)
-        return sn
+        self.board = board
     def __lt__(self, other):
         return len(self.steps)+self.h < len(other.steps)+other.h
     def move(self, p, x, y, s:str):
-        print(f"Type/col/row/direction: {p}/{x}/{y}/" + s)
+        minus = 0
+        plus = 0
         xLow = max(0, x)
         yLow = max(0, y)
         xHigh = min(Problem.width, x + Problem.patterns[p].width)
@@ -168,21 +167,26 @@ class State:
                 erase = []
                 keep = []
                 for i in range(yLow, Problem.height):
+                    if(self.board[i][j]!=Problem.goal_grid.cells[i][j]):
+                        minus+=1
                     iPattern = i - y
                     jPattern = j - x
                     try:
                         if Problem.patterns[p].cells[iPattern][jPattern] == 1:
-                            erase.append(self.grid.cells[i][j])
+                            erase.append(self.board[i][j])
                         else:
-                            keep.append(self.grid.cells[i][j])
+                            keep.append(self.board[i][j])
                     except:
-                        keep.append(self.grid.cells[i][j])
+                        keep.append(self.board[i][j])
                 for i in range(len(keep)):
-                    self.grid.cells[yLow+i][j] = keep[i]
+                    self.board[yLow+i][j] = keep[i]
+                    if(self.board[yLow+i][j]!=Problem.goal_grid.cells[yLow+i][j]):
+                        plus+=1
                 for i in range(len(erase)):
-                    self.grid.cells[yLow+len(keep)+i][j] = erase[i]
-            self.panel.paint()
-            self.panel.root.update()
+                    self.board[yLow+len(keep)+i][j] = erase[i]
+                    if(self.board[yLow+len(keep)+i][j]!=Problem.goal_grid.cells[yLow+len(keep)+i][j]):
+                        plus+=1
+            self.h += (plus-minus)
             return
         if(s == 'down'):
             for j in range(xLow, xHigh):
@@ -190,61 +194,76 @@ class State:
                 keep = []
                 jPattern = j - x
                 for i in range(yHigh - 1, -1, -1):
+                    if(self.board[i][j]!=Problem.goal_grid.cells[i][j]):
+                        minus+=1
                     iPattern = i - y
                     try:
                         if Problem.patterns[p].cells[iPattern][jPattern] == 1 and iPattern>=0:
-                            erase.append(self.grid.cells[i][j])
+                            erase.append(self.board[i][j])
                         else:
-                            keep.append(self.grid.cells[i][j])
+                            keep.append(self.board[i][j])
                     except:
-                        keep.append(self.grid.cells[i][j])
+                        keep.append(self.board[i][j])
                 for i in range(len(keep)):
-                    self.grid.cells[yHigh-1-i][j] = keep[i]
+                    self.board[yHigh-1-i][j] = keep[i]
+                    if(self.board[yHigh-1-i][j]!=Problem.goal_grid.cells[yHigh-1-i][j]):
+                        plus+=1
                 for i in range(len(erase)):
-                    self.grid.cells[yHigh-1-len(keep)-i][j] = erase[i]
-            self.panel.paint()
-            self.panel.root.update()
+                    self.board[yHigh-1-len(keep)-i][j] = erase[i]
+                    if(self.board[yHigh-1-len(keep)-i][j]!=Problem.goal_grid.cells[yHigh-1-len(keep)-i][j]):
+                        plus+=1
+            self.h += (plus-minus)
             return
         if(s == 'left'):
             for i in range(yLow, yHigh):
                 erase = []
                 keep = []
                 for j in range(xLow, Problem.width):
+                    if(self.board[i][j]!=Problem.goal_grid.cells[i][j]):
+                        minus+=1
                     iPattern = i - y
                     jPattern = j - x
                     try:
                         if Problem.patterns[p].cells[iPattern][jPattern] == 1:
-                            erase.append(self.grid.cells[i][j])
+                            erase.append(self.board[i][j])
                         else:
-                            keep.append(self.grid.cells[i][j])
+                            keep.append(self.board[i][j])
                     except:
-                        keep.append(self.grid.cells[i][j])
+                        keep.append(self.board[i][j])
                 for j in range(len(keep)):
-                    self.grid.cells[i][xLow+j] = keep[j]
+                    self.board[i][xLow+j] = keep[j]
+                    if(self.board[i][xLow+j]!=Problem.goal_grid.cells[i][xLow+j]):
+                        plus+=1
                 for j in range(len(erase)):
-                    self.grid.cells[i][xLow+len(keep)+j] = erase[j]
-            self.panel.paint()
-            self.panel.root.update()
+                    self.board[i][xLow+len(keep)+j] = erase[j]
+                    if(self.board[i][xLow+len(keep)+j]!=Problem.goal_grid.cells[i][xLow+len(keep)+j]):
+                        plus+=1
+            self.h += (plus-minus)
             return
         for i in range(yLow, yHigh):
             erase = []
             keep = []
             iPattern = i - y
             for j in range(xHigh - 1, -1, -1):
+                if(self.board[i][j]!=Problem.goal_grid.cells[i][j]):
+                        minus+=1
                 jPattern = j - x
                 try:
                     if Problem.patterns[p].cells[iPattern][jPattern] == 1 and jPattern>=0:
-                        erase.append(self.grid.cells[i][j])
+                        erase.append(self.board[i][j])
                     else:
-                        keep.append(self.grid.cells[i][j])
+                        keep.append(self.board[i][j])
                 except:
-                    keep.append(self.grid.cells[i][j])
+                    keep.append(self.board[i][j])
             for j in range(len(keep)):
-                self.grid.cells[i][xHigh-1-j] = keep[j]
+                self.board[i][xHigh-1-j] = keep[j]
+                if(self.board[i][xHigh-1-j]!=Problem.goal_grid.cells[i][xHigh-1-j]):
+                        plus+=1
             for j in range(len(erase)):
-                self.grid.cells[i][xHigh-1-len(keep)-j] = erase[j]
-        self.panel.paint()
-        self.panel.root.update()
+                self.board[i][xHigh-1-len(keep)-j] = erase[j]
+                if(self.board[i][xHigh-1-len(keep)-j]!=Problem.goal_grid.cells[i][xHigh-1-len(keep)-j]):
+                        plus+=1
+        self.h += (plus-minus)
         return
 
 class Game:
@@ -287,6 +306,10 @@ class Game:
         self.panel.paint()
 
     def save_move_btn(self, event):
+        for row in range(Problem.height):
+                for col in range(Problem.width):
+                    if(self.agent.grid.cells[row][col] != Problem.goal_grid.cells[row][col]):
+                        self.agent.fail+=1
         self.agents.append(self.agent)
 
     def basic_solve_btn(self, event):
@@ -314,39 +337,201 @@ class Game:
         self.solve_with_kmp()
 
     def a_star_btn(self, event):
-        def calculate_h():
-            fail=0
+        def find_1die1move(board):
+            xhigh = 0
+            yhigh = 0
+            xlow = Problem.width-1
+            ylow = Problem.height-1
+            unmatched=0
+
             for row in range(Problem.height):
                 for col in range(Problem.width):
-                    if(self.grid.cells[row][col] != Problem.goal_grid.cells[row][col]):
-                        fail+=1
-            return fail
-        self.agents.append(Agent())
-        self.grid = self.agents[len(self.agents)-1].grid
-        self.grid = deepcopy(Problem.start_grid)
-        depth = int(self.panel.interactBackground.nametowidget("depthEntry").get())
-        open = PriorityQueue()
-        open.put(State([], calculate_h()))
-
-        while(True):
-            if(open.empty()):
-                print("An error occurred!")
-                return
-            O = open.get()
-            print(f"Expanding {O.steps}")
-            for i in range(len(Problem.patterns)):
-                for row in range(-(Problem.patterns[i].height - 1), Problem.height):
+                    if(board[row][col] != Problem.goal_grid.cells[row][col]):
+                        unmatched+=1
+                        xlow = min(xlow, col)
+                        ylow = min(ylow, row)
+                        xhigh = max(xhigh, col)
+                        yhigh = max(yhigh, row)
+            print(xlow, ylow, xhigh, yhigh)
+            if(xlow == 0 and ylow == 0 and xhigh < Problem.width-1 and yhigh < Problem.height-1):
+                for i in range(len(Problem.patterns)-1, -1, -1):
+                    for s in range(4):
+                        state = State(deepcopy(board), [], unmatched)
+                        state.move(i, xhigh-Problem.patterns[i].width+1, yhigh-Problem.patterns[i].height+1, Game.Direction[s])
+                        if(state.h == 0):
+                            agent = Agent()
+                            self.agents.append(agent)
+                            self.make_move_log(agent, i, xhigh-Problem.patterns[i].width+1, yhigh-Problem.patterns[i].height+1, Game.Direction[s])
+                            print(f"Found solution: {agent.solution}")
+                            return
+            elif(xlow == 0 and ylow == 0 and xhigh == Problem.width-1 and yhigh < Problem.height-1):
+                for i in range(len(Problem.patterns)-1, -1, -1):
                     for col in range(-(Problem.patterns[i].width - 1), Problem.width):
                         for s in range(4):
-                            self.grid = deepcopy(Problem.start_grid)
-                            self.make_move(i, col, row, Game.Direction[s])
-                            state = State([], calculate_h())
+                            state = State(deepcopy(board), [], unmatched)
+                            state.move(i, col, yhigh-Problem.patterns[i].height+1, Game.Direction[s])
                             if(state.h == 0):
-                                self.make_move_log(i, col, row, Game.Direction[s])
-                                print("Found solution!")
+                                agent = Agent()
+                                self.agents.append(agent)
+                                self.make_move_log(agent, i, col, yhigh-Problem.patterns[i].height+1, Game.Direction[s])
+                                print(f"Found solution: {agent.solution}")
                                 return
-                            self.panel.root.update()
-                print(i)
+            elif(xlow == 0 and ylow == 0 and xhigh < Problem.width-1 and yhigh == Problem.height-1):
+                for i in range(len(Problem.patterns)-1, -1, -1):
+                    for row in range(-(Problem.patterns[i].height - 1), Problem.height):
+                        for s in range(4):
+                            state = State(deepcopy(board), [], unmatched)
+                            state.move(i, xhigh-Problem.patterns[i].width+1, row, Game.Direction[s])
+                            if(state.h == 0):
+                                agent = Agent()
+                                self.agents.append(agent)
+                                self.make_move_log(agent, i, xhigh-Problem.patterns[i].width+1, row, Game.Direction[s])
+                                print(f"Found solution: {agent.solution}")
+                                return
+            elif(xlow > 0 and ylow == 0 and xhigh == Problem.width-1 and yhigh < Problem.height-1):
+                for i in range(len(Problem.patterns)-1, -1, -1):
+                    for s in range(4):
+                        state = State(deepcopy(board), [], unmatched)
+                        state.move(i, xlow, yhigh-Problem.patterns[i].height+1, Game.Direction[s])
+                        if(state.h == 0):
+                            agent = Agent()
+                            self.agents.append(agent)
+                            self.make_move_log(agent, i, xlow, yhigh-Problem.patterns[i].height+1, Game.Direction[s])
+                            print(f"Found solution: {agent.solution}")
+                            return
+            elif(xlow > 0 and ylow == 0 and xhigh == Problem.width-1 and yhigh == Problem.height-1):
+                for i in range(len(Problem.patterns)-1, -1, -1):
+                    for row in range(-(Problem.patterns[i].height - 1), Problem.height):
+                        for s in range(4):
+                            state = State(deepcopy(board), [], unmatched)
+                            state.move(i, xlow, row, Game.Direction[s])
+                            if(state.h == 0):
+                                agent = Agent()
+                                self.agents.append(agent)
+                                self.make_move_log(agent, i, xlow, row, Game.Direction[s])
+                                print(f"Found solution: {agent.solution}")
+                                return
+            elif(xlow == 0 and ylow > 0 and xhigh < Problem.width-1 and yhigh == Problem.height-1):
+                for i in range(len(Problem.patterns)-1, -1, -1):
+                    for s in range(4):
+                        state = State(deepcopy(board), [], unmatched)
+                        state.move(i, xhigh-Problem.patterns[i].width+1, ylow, Game.Direction[s])
+                        if(state.h == 0):
+                            agent = Agent()
+                            self.agents.append(agent)
+                            self.make_move_log(agent, i, xhigh-Problem.patterns[i].width+1, ylow, Game.Direction[s])
+                            print(f"Found solution: {agent.solution}")
+                            return
+            elif(xlow == 0 and ylow > 0 and xhigh == Problem.width-1 and yhigh == Problem.height-1):
+                for i in range(len(Problem.patterns)-1, -1, -1):
+                    for col in range(-(Problem.patterns[i].width - 1), Problem.width):
+                        for s in range(4):
+                            state = State(deepcopy(board), [], unmatched)
+                            state.move(i, col, ylow, Game.Direction[s])
+                            if(state.h == 0):
+                                agent = Agent()
+                                self.agents.append(agent)
+                                self.make_move_log(agent, i, col, ylow, Game.Direction[s])
+                                print(f"Found solution: {agent.solution}")
+                                return
+            elif(xlow > 0 and ylow > 0 and xhigh == Problem.width-1 and yhigh == Problem.height-1):
+                for i in range(len(Problem.patterns)-1, -1, -1):
+                    for s in range(4):
+                        state = State(deepcopy(board), [], unmatched)
+                        state.move(i, xlow, ylow, Game.Direction[s])
+                        if(state.h == 0):
+                            agent = Agent()
+                            self.agents.append(agent)
+                            self.make_move_log(agent, i, xlow, ylow, Game.Direction[s])
+                            print(f"Found solution: {agent.solution}")
+                            return
+            elif(xlow > 0 and ylow == 0 and xhigh < Problem.width-1 and yhigh < Problem.height-1):
+                for i in range(len(Problem.patterns)-1, -1, -1):
+                    for row in range(-(Problem.patterns[i].height - 1), Problem.height):
+                        for s in range(4):
+                            state = State(deepcopy(board), [], unmatched)
+                            state.move(i, xlow, row, Game.Direction[s])
+                            if(state.h == 0):
+                                agent = Agent()
+                                self.agents.append(agent)
+                                self.make_move_log(agent, i, xlow, row, Game.Direction[s])
+                                print(f"Found solution: {agent.solution}")
+                                return
+            elif(xlow > 0 and ylow > 0 and xhigh == Problem.width-1 and yhigh < Problem.height-1):
+                for i in range(len(Problem.patterns)-1, -1, -1):
+                    for col in range(-(Problem.patterns[i].width - 1), Problem.width):
+                        for s in range(4):
+                            state = State(deepcopy(board), [], unmatched)
+                            state.move(i, col, ylow, Game.Direction[s])
+                            if(state.h == 0):
+                                agent = Agent()
+                                self.agents.append(agent)
+                                self.make_move_log(agent, i, col, ylow, Game.Direction[s])
+                                print(f"Found solution: {agent.solution}")
+                                return
+            elif(xlow == 0 and ylow > 0 and xhigh < Problem.width-1 and yhigh < Problem.height-1):
+                for i in range(len(Problem.patterns)-1, -1, -1):
+                    for col in range(-(Problem.patterns[i].width - 1), Problem.width):
+                        for s in range(4):
+                            state = State(deepcopy(board), [], unmatched)
+                            state.move(i, col, ylow, Game.Direction[s])
+                            if(state.h == 0):
+                                agent = Agent()
+                                self.agents.append(agent)
+                                self.make_move_log(agent, i, col, ylow, Game.Direction[s])
+                                print(f"Found solution: {agent.solution}")
+                                return
+            elif(xlow > 0 and ylow > 0 and xhigh < Problem.width-1 and yhigh == Problem.height-1):
+                for i in range(len(Problem.patterns)-1, -1, -1):
+                    for row in range(-(Problem.patterns[i].height - 1), Problem.height):
+                        for s in range(4):
+                            state = State(deepcopy(board), [], unmatched)
+                            state.move(i, xlow, row, Game.Direction[s])
+                            if(state.h == 0):
+                                agent = Agent()
+                                self.agents.append(agent)
+                                self.make_move_log(agent, i, xlow, row, Game.Direction[s])
+                                print(f"Found solution: {agent.solution}")
+                                return
+            print("Cant solve this problem in 1 move")
+            return
+        
+        find_1die1move(Problem.start_grid.cells)
+        # unmatched=0
+        # for row in range(Problem.height):
+        #     for col in range(Problem.width):
+        #         if(self.grid.cells[row][col] != Problem.goal_grid.cells[row][col]):
+        #             unmatched+=1
+        
+        # depth = int(self.panel.interactBackground.nametowidget("depthEntry").get())
+        # open = PriorityQueue(maxsize=100000)
+        # open.put(State(deepcopy(Problem.start_grid.cells), [], unmatched))
+
+        # while(True):
+        #     if(open.empty()):
+        #         print("An error occurred!")
+        #         return
+        #     O = open.get()
+        #     print(f"Expanding {O.steps}")
+        #     for i in range(len(Problem.patterns)-1, -1, -1):
+        #         # total = 0
+        #         for row in range(-(Problem.patterns[i].height - 1), Problem.height):
+        #             for col in range(-(Problem.patterns[i].width - 1), Problem.width):
+        #                 for s in range(4):
+        #                     state = deepcopy(O)
+        #                     state.move(i, col, row, Game.Direction[s])
+        #                     # total+=1
+        #                     # print(total)
+        #                     if(state.h == 0):
+        #                         agent = Agent()
+        #                         self.agents.append(agent)
+        #                         self.make_move_log(agent, i, col, row, Game.Direction[s])
+        #                         print("Found solution!")
+        #                         return
+        #                     # if(state.h < O.h):
+        #                     #     open.put(state)
+        #                 self.panel.root.update()
+        #         print(i)
 
     def make_move_btn(self, event):
         pattern = int(self.panel.interactBackground.nametowidget("patternEntry").get())
